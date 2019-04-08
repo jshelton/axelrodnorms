@@ -1,0 +1,40 @@
+{
+  "tasks": [
+    {
+      "type": "shell",
+      "label": "compile",
+      "command": "/usr/bin/g++",
+      "args": [
+        "-g",
+        "${file}",
+        "-o",
+        "${fileDirname}/${fileBasenameNoExtension}"
+      ],
+      "options": {
+        "cwd": "/usr/bin"
+      }
+    },
+    {
+      "type": "shell",
+      "label": "Run",
+      "command": "${fileDirname}/${fileBasenameNoExtension}",
+      "problemMatcher": []
+    },
+    {
+      "type": "shell",
+      "label": "g++ build active file",
+      "command": "/usr/bin/g++",
+      "args": [
+        "-g",
+        "${file}",
+        "-o",
+        "${fileDirname}/${fileBasenameNoExtension}"
+      ],
+      "options": {
+        "cwd": "/usr/bin"
+      },
+      "problemMatcher": ["$gcc"]
+    }
+  ],
+  "version": "2.0.0"
+}
