@@ -4,7 +4,7 @@
 #include <sstream>
 
 #include <math.h>
-#include <time.h> /* time */
+#include <time.h>
 
 using namespace std;
 
@@ -14,8 +14,6 @@ const double nudge = 0.00000001;
 // Populationcontrols
 const int defaultPopulationSize = 40;
 const int initialScore = 0;
-// const int defaultbytesPerPlayer = 2;
-//const int defaultbitsPerPlayerByte = 3;
 const double bitsPerPlayerByte = 3;
 const double probAboveStdDev = 0.1587;
 const int numberOfDefectionOpportunities = 1;
@@ -45,8 +43,6 @@ class Player
   int V, B;
 
   int S;
-  // static int bitsPerPlayerByte;
-  //  static int bytesPerPlayer;
 
   /**
  * randomBitFlip(number,probability)
@@ -69,14 +65,6 @@ class Player
   }
 
 public:
-  // Not used anymore
-  //void setBitsAssumptions(int bytspb = defaultbytesPerPlayer, int bitspp = defaultbitsPerPlayerByte)
-  // void setBitsAssumptions(int bitspp = defaultbitsPerPlayerByte)
-  // {
-  //   // bytesPerPlayer = bytspb;
-  //   bitsPerPlayerByte = bitspp;
-  // }
-
   int vengance() const
   {
     return V;
@@ -106,13 +94,6 @@ public:
   {
     return B;
   }
-
-  // void clone(Player const &p)
-  // {
-  //   this->V = p.V;
-  //   this->B = p.B;
-  //   this->S = initialScore;
-  // }
 
   Player(Player const &p)
   {
@@ -366,44 +347,6 @@ public:
     return num * num;
   }
 
-  /* 
-* averageScore()
-* returns the average score of the dataset
-*/
-  // double averageScore()
-  // {
-
-  //   double scoreTotal = 0;
-
-  //   for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
-  //   {
-  //     scoreTotal += it->score();
-  //   }
-
-  //   double average = scoreTotal / playerList.size();
-
-  //   return average;
-  // }
-  /* 
-* stdDev()
-* Returns the standard deviation
-*/
-  // double stdDevScore()
-  // {
-
-  //   double varianceTotal = 0;
-
-  //   double average = averageScore();
-
-  //   for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
-  //   {
-  //     varianceTotal += squared(it->score() - average);
-  //   }
-
-  //   double stdDev = sqrt(varianceTotal) / playerList.size();
-  //   return stdDev;
-  // }
-
   /*
 * Procreate
 * This function will go through all the items and will generate 2 clones of individuals with scores
@@ -470,38 +413,6 @@ public:
     // Now the remaining Should be
     newList.insert(newList.end(), playerList.begin(), playerList.end());
 
-    // // Not going to do it this way anymore
-    // if (false)
-    // {
-
-    //   double stdDev = stdDevScore();
-    //   double average = averageScore();
-    //   if (debug)
-    //     cerr << "-std dev: " << stdDev << " Average: " << average;
-
-    //   for (list<Player>::iterator it = playerList.begin(); it != playerList.end() && countProgeny < populationSize; it++)
-    //   {
-
-    //     // Any below one standard deviation from mean
-    //     if (it->score() > average - stdDev - nudge)
-    //     {
-    //       if (++countProgeny > populationSize)
-    //         break;
-
-    //       newList.push_back(Player(*it));
-
-    //       // if we are talking about above one standard deviation from mean
-    //       if (it->score() > stdDev + average + nudge)
-    //       {
-    //         if (++countProgeny > populationSize)
-    //           break;
-
-    //         newList.push_back(Player(*it));
-    //       }
-    //     }
-    //   }
-    // }
-
     if (debug)
     {
       cerr << "-newList ";
@@ -519,32 +430,6 @@ public:
     for (list<Player>::iterator it = playerList.begin(); it != playerList.end() && countProgeny < populationSize; it++)
     {
       it->BitFlip(bitFlipProbability);
-    }
-  }
-
-  /* 
-  *  Procreate clones the current player and places him immediately after the current player. 
-  *  This new player has the default initial score 0.
-  */
-  // void procreateOne(int indexFrom, int indexTo)
-  // {
-  //   playerList[indexTo].clone(playerList.at(indexFrom));
-  // }
-  void procreateOne(int indexFrom)
-  {
-    if (indexFrom < playerList.size() - 1)
-    {
-      playerList.pop_back();
-
-      list<Player>::iterator it = playerList.begin();
-      for (int i = 0; i < indexFrom; i++)
-        it++;
-
-      playerList.insert(it, Player(*it));
-    }
-    else
-    {
-      throw "index out of range (cannot be the last element of the list";
     }
   }
 
