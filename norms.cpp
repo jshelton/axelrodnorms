@@ -18,11 +18,13 @@ const int initialScore = 0;
 //const int defaultbitsPerPlayerByte = 3;
 const double bitsPerPlayerByte = 3;
 const double probAboveStdDev = 0.1587;
-const int numberOfDefectionOpportunities = 4;
+const int numberOfDefectionOpportunities = 1;
 const bool metaNormsEnabled = false;
 const double bitFlipProbability = 0.01;
 
 // AxelRod's Algorithm
+int boldnessScale = 7;
+int vengenceScale = 7;
 const int T = 3;
 const int H = -1;
 const int P = -9;
@@ -39,7 +41,9 @@ double rand1()
 class Player
 {
 
-  int V, B, S;
+  int V, B;
+
+  int S;
   // static int bitsPerPlayerByte;
   //  static int bytesPerPlayer;
 
@@ -194,37 +198,41 @@ public:
 
     for (int i = 0; i < populationSize; i++)
     {
-      playerList.push_back(Player(0.0 + rand() % 7, 0.0 + rand() % 7));
+      playerList.push_back(Player(rand() % boldnessScale, rand() % vengenceScale));
     }
   }
 
   void calculateScores()
   {
-    bool debug = true;
+    bool debug = false;
     for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
     {
-      Player p = (*it);
 
       if (debug)
       {
-        cerr << "Now Player: " << (*it);
+        cerr << endl
+             << "-Now Player: " << (*it) << " ";
       }
 
-      for (int defectionOpportunity; defectionOpportunity < numberOfDefectionOpportunities; defectionOpportunity++)
+      for (int defectionOpportunity = 0; defectionOpportunity < numberOfDefectionOpportunities; defectionOpportunity++)
       {
         // probability of being seen
         double S = rand1();
 
         if (debug)
         {
-          cerr << "Defection opportunity: " << defectionOpportunity << ", S = " << S << endl;
+          cerr << "Defection opportunity: " << defectionOpportunity << ", S = " << S << ". Brave enough (" << S * boldnessScale << "/" << it->boldness() << ")? " << endl;
         }
 
         // If he is brave enough
-        if (p.boldness() > S)
+        if (S * boldnessScale < it->boldness())
         {
+          if (debug)
+          {
+            cerr << "Yes Brave enough. ";
+          }
           // Increase the player's payoff
-          p.score() += T;
+          it->score() += T;
 
           // Now to see if anyone caught this person
           for (list<Player>::iterator jt = playerList.begin(); jt != playerList.end(); jt++)
@@ -234,33 +242,36 @@ public:
               continue;
 
             // Every other agent was hurt because of this defection
-            jt->score() -= H;
+            jt->score() += H;
+
+            double probabilityWasSeen = rand1();
 
             if (debug)
-              cerr << "Did " << (*jt) << " see him? ";
+              cerr << endl
+                   << "Did " << (*jt) << " see him (" << probabilityWasSeen << "/" << S << ")? ";
 
             // if this defection falls in the probability of being seen
-            double probabilityWasSeen = rand1();
             if (probabilityWasSeen < S)
             {
               if (debug)
-                cerr << "Yes, he was seen by " << (*jt) << ".";
+                cerr << "Yes, he was seen by " << (*jt) << ". ";
 
               // Agent j saw agent i
               // Now let's see what he does about it
 
-              if (debug)
-                cerr << "Did " << (*jt) << " punish him? ";
-
               // if we sample and it falls under the area of vengeful behavior
-              double probabilityWasVengeful = rand1();
+              double probabilityWasVengeful = rand1() * vengenceScale;
+              if (debug)
+                cerr << "Did " << (*jt) << " punish him (" << probabilityWasVengeful << "/" << jt->vengance() << ")?";
+
               if (probabilityWasVengeful < jt->vengance())
               {
-                if (debug)
-                  cerr << "Yes " << (*jt) << " punished him";
 
-                jt->score() -= E;
-                it->score() -= P;
+                jt->score() += E;
+                it->score() += P;
+
+                if (debug)
+                  cerr << "Yes " << (*jt) << " punished " << (*it) << ".";
               }
               else
               {
@@ -301,39 +312,39 @@ public:
 * averageScore()
 * returns the average score of the dataset
 */
-  double averageScore()
-  {
+  // double averageScore()
+  // {
 
-    double scoreTotal = 0;
+  //   double scoreTotal = 0;
 
-    for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
-    {
-      scoreTotal += it->score();
-    }
+  //   for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
+  //   {
+  //     scoreTotal += it->score();
+  //   }
 
-    double average = scoreTotal / playerList.size();
+  //   double average = scoreTotal / playerList.size();
 
-    return average;
-  }
+  //   return average;
+  // }
   /* 
 * stdDev()
 * Returns the standard deviation
 */
-  double stdDevScore()
-  {
+  // double stdDevScore()
+  // {
 
-    double varianceTotal = 0;
+  //   double varianceTotal = 0;
 
-    double average = averageScore();
+  //   double average = averageScore();
 
-    for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
-    {
-      varianceTotal += squared(it->score() - average);
-    }
+  //   for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
+  //   {
+  //     varianceTotal += squared(it->score() - average);
+  //   }
 
-    double stdDev = sqrt(varianceTotal) / playerList.size();
-    return stdDev;
-  }
+  //   double stdDev = sqrt(varianceTotal) / playerList.size();
+  //   return stdDev;
+  // }
 
   /*
 * Procreate
@@ -673,6 +684,41 @@ struct UnitTests
     return success;
   }
 
+  static bool test5(bool debug)
+  {
+    string testName = "Test Score Calculation";
+    stringstream ss;
+    string expected("(6,6,0)(0,3,0)(4,0,0)(1,6,0)(5,2,0)(6,1,0)(2,2,0)(0,6,0)(0,1,0)(0,3,0)(3,0,0)(1,6,0)(5,6,0)(5,2,0)(2,5,0)(0,3,0)(0,0,0)(0,1,0)(1,3,0)(5,6,0)\n(6,6,-62)(0,3,-10)(4,0,-16)(1,6,-10)(5,2,-16)(6,1,-12)(2,2,-26)(0,6,-6)(0,1,-6)(0,3,-10)(3,0,-14)(1,6,-26)(5,6,-19)(5,2,-14)(2,5,-44)(0,3,-10)(0,0,-10)(0,1,-10)(1,3,-24)(5,6,-24)");
+
+    {
+      PlaySet pl;
+
+      pl.setSeed(195105);
+
+      int popSize = 20;
+      pl.setPopulationSize(popSize);
+      pl.generateList();
+
+      ss << pl << endl;
+
+      pl.calculateScores();
+
+      ss << pl;
+    }
+
+    // See if the expectation value is accurate
+    bool success = (expected.compare(ss.str()) == 0);
+    if (debug)
+    {
+      cerr << "Test Title: " << testName << "" << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
+    }
+    return success;
+  }
+
   static bool runAll()
   {
     bool debug = true;
@@ -684,6 +730,7 @@ struct UnitTests
     runTest(pass, test2, debug);
     runTest(pass, test3, debug);
     runTest(pass, test4, debug);
+    runTest(pass, test5, debug);
 
     bool passall = true;
 
