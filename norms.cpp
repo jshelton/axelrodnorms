@@ -14,13 +14,49 @@ const double nudge = 0.00000001;
 // Populationcontrols
 const int defaultPopulationSize = 40;
 const int initialScore = 0;
+const int defaultbytesPerPlayer = 2;
+const int defaultbitsPerPlayerByte = 3;
+const double probAboveStdDev = 0.1587;
+
+double rand1()
+{
+  return (1.0 * rand()) / RAND_MAX;
+}
 
 class Player
 {
 
   int V, B, S;
+  static int bitsPerPlayerByte;
+  static int bytesPerPlayer;
+
+  /**
+ * randomBitFlip(number,probability)
+ * This function will flip assumes bitsPerPlayer number of bits (usually 3)
+ * It will randomly flip one of the first bitsPerPlayer bits if the random 
+ * generated double is below the input probability.
+ */
+  int randomBitFlip(int &number, double probability)
+  {
+
+    for (int i = 0; i < bitsPerPlayerByte; i++)
+    {
+      if (rand1() < probability)
+      {
+        // lucky bit
+        number = number ^ (1 << i);
+      }
+    }
+    return number;
+  }
 
 public:
+  void setBitsAssumptions(int bytspb = defaultbytesPerPlayer, int bitspp = defaultbitsPerPlayerByte)
+  {
+    bitsPerPlayerByte = bytspb;
+    bytesPerPlayer = bitspp;
+  }
+
   int vengance() const
   {
     return V;
@@ -79,11 +115,17 @@ public:
     this->B = newB;
     this->S = initialScore;
   }
+
+  void BitFlip(double probability)
+  {
+    this->V = randomBitFlip(this->V, probability);
+    this->B = randomBitFlip(this->B, probability);
+  }
 };
 
-int scoreSort(const Player &p1, const Player &p2)
+bool scoreCompare(const Player &p1, const Player &p2)
 {
-  return p1.score() - p2.score();
+  return p1.score() > p2.score();
 }
 
 ostream &operator<<(ostream &os, const Player &p)
@@ -217,50 +259,29 @@ public:
   void procreate()
   {
     bool debug = false;
-    double stdDev = stdDevScore();
-    double average = averageScore();
 
-    if (debug)
-      cerr << "-std dev: " << stdDev << " Average: " << average;
-
-    // Here we procreate by:
+    // In theory Here we procreate by:
     // Add two of the ones higher than one standard deviation
     // Add one for those who are above one standard deviation
     // Ignore less than one standard deviation
     // Until we reach the size of our max Population and then we stop
 
-    int i = 0;
+    // In practice it is easier to remove a low one and add two high ones
+    // until we get to a standard deviation. Essentially the top 15.87%
+    // replaces the bottom 15.87%.
+
+    // Just make sure our assumptions are correct
+    if (populationSize != playerList.size())
+      cerr << "ERROR: Population sizes do not match up" << endl;
+
+    int numberOfTopEschelon = populationSize * probAboveStdDev;
+    int countProgeny = 0;
     list<Player> newList;
 
-    for (list<Player>::iterator it = playerList.begin(); it != playerList.end() && i < populationSize; i++, it++)
-    {
-
-      if (it->score() > average - stdDev - nudge)
-      {
-        newList.push_back(Player(*it));
-        if (it->score() > stdDev + average + nudge)
-          newList.push_back(Player(*it));
-      }
-    }
-
+    playerList.sort(scoreCompare);
     if (debug)
     {
-      cerr << endl
-           << "-newList ";
-      for (list<Player>::iterator it = newList.begin(); it != newList.end(); it++)
-      {
-        cerr << "," << *it;
-      }
-    }
-
-    playerList.clear();
-
-    playerList.assign(newList.begin(), newList.end());
-
-    if (debug)
-    {
-      cerr << endl
-           << "-playerList ";
+      cerr << "-playerList ";
       for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
       {
         cerr << "," << *it;
@@ -268,6 +289,79 @@ public:
 
       cerr << endl;
     }
+
+    // First Start with top eschelon
+    for (int i = 0; i < numberOfTopEschelon; i++)
+    {
+
+      // Just checking Assumptions
+      if (playerList.begin() == playerList.end())
+      {
+        cerr << "ERROR: top eschelon miscalculated" << endl;
+        break;
+      }
+
+      // Top Eschelon gets kids
+      newList.push_back(Player(*playerList.begin()));
+      newList.push_back(Player(*playerList.begin()));
+
+      // This will replace the spot of one lower eschelon and one upper eschelon
+      playerList.pop_front();
+      playerList.pop_back();
+    }
+
+    // Checking Assumptions
+    if (playerList.size() != populationSize - 2 * numberOfTopEschelon)
+      cerr << "ERROR: The math behind normal population size is mistaken" << endl;
+
+    // Now the remaining Should be
+    newList.insert(newList.end(), playerList.begin(), playerList.end());
+
+    // // Not going to do it this way anymore
+    // if (false)
+    // {
+
+    //   double stdDev = stdDevScore();
+    //   double average = averageScore();
+    //   if (debug)
+    //     cerr << "-std dev: " << stdDev << " Average: " << average;
+
+    //   for (list<Player>::iterator it = playerList.begin(); it != playerList.end() && countProgeny < populationSize; it++)
+    //   {
+
+    //     // Any below one standard deviation from mean
+    //     if (it->score() > average - stdDev - nudge)
+    //     {
+    //       if (++countProgeny > populationSize)
+    //         break;
+
+    //       newList.push_back(Player(*it));
+
+    //       // if we are talking about above one standard deviation from mean
+    //       if (it->score() > stdDev + average + nudge)
+    //       {
+    //         if (++countProgeny > populationSize)
+    //           break;
+
+    //         newList.push_back(Player(*it));
+    //       }
+    //     }
+    //   }
+    // }
+
+    if (debug)
+    {
+      cerr << "-newList ";
+      for (list<Player>::iterator it = newList.begin(); it != newList.end(); it++)
+      {
+        cerr << "," << *it;
+      }
+      cerr << endl;
+    }
+
+    playerList.clear();
+
+    playerList.assign(newList.begin(), newList.end());
   }
 
   /* 
@@ -346,8 +440,10 @@ struct UnitTests
     if (debug)
     {
       cerr << "Test Title: " << testName << "" << endl;
-      cerr << "Expected: " << expected << endl;
-      cerr << "Actual: " << ss.str() << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
     }
     return success;
   }
@@ -374,8 +470,10 @@ struct UnitTests
     if (debug)
     {
       cerr << "Test Title: " << testName << "" << endl;
-      cerr << "Expected: " << expected << endl;
-      cerr << "Actual: " << ss.str() << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
     }
     return success;
   }
@@ -401,8 +499,10 @@ struct UnitTests
     if (debug)
     {
       cerr << "Test Title: " << testName << "" << endl;
-      cerr << "Expected: " << expected << endl;
-      cerr << "Actual: " << ss.str() << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
     }
     return success;
   }
@@ -411,7 +511,7 @@ struct UnitTests
   {
     string testName = "Test reproduction";
     stringstream ss;
-    string expected("(0,3,-40)(2,1,-33)(1,4,-15)(4,5,-23)(1,5,-10)\n(1,4,-15)(1,4,-15)(4,5,-23)(1,5,-10)(1,5,-10)");
+    string expected("(0,3,-40)(2,1,-33)(1,4,-15)(4,5,-23)(1,5,-10)\n(1,5,-10)(1,4,-15)(4,5,-23)(2,1,-33)(0,3,-40)");
 
     {
       PlaySet pl;
@@ -438,20 +538,37 @@ struct UnitTests
     if (debug)
     {
       cerr << "Test Title: " << testName << "" << endl;
-      cerr << "Expected: " << expected << endl;
-      cerr << "Actual: " << ss.str() << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
     }
     return success;
   }
 
   static bool test4(bool debug)
   {
-    string testName = "Test Procreation";
+    string testName = "Test RandomBitSwitch";
     stringstream ss;
-    string expected("This is a Test");
+    string expected("(6,4,-12)(0,2,-32)(3,3,-25)(1,1,-79)(6,4,-77)(3,5,-92)(3,0,-81)(5,4,-76)(6,3,-53)(6,6,-87)(1,4,-58)(3,1,-71)(4,1,-60)(1,5,-73)(4,6,-75)(4,6,-6)(4,0,-7)(1,0,-47)(4,3,-81)(6,6,-22)\n(4,6,-6)(4,6,-6)(4,0,-7)(4,0,-7)(6,4,-12)(6,4,-12)(6,6,-22)(3,3,-25)(0,2,-32)(1,0,-47)(6,3,-53)(1,4,-58)(4,1,-60)(3,1,-71)(1,5,-73)(4,6,-75)(5,4,-76)(6,4,-77)(1,1,-79)(3,0,-81)");
 
     {
-      ss << "This is a Test";
+      PlaySet pl;
+
+      pl.setSeed(232321);
+
+      int popSize = 20;
+      pl.setPopulationSize(popSize);
+      pl.generateList();
+
+      for (int i = 0; i < popSize; i++)
+        pl.playerAt(i).score() = (rand() % 100) - 95;
+
+      ss << pl << endl;
+
+      pl.procreate();
+
+      ss << pl;
     }
 
     // See if the expectation value is accurate
@@ -459,8 +576,10 @@ struct UnitTests
     if (debug)
     {
       cerr << "Test Title: " << testName << "" << endl;
-      cerr << "Expected: " << expected << endl;
-      cerr << "Actual: " << ss.str() << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
     }
     return success;
   }
