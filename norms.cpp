@@ -14,9 +14,22 @@ const double nudge = 0.00000001;
 // Populationcontrols
 const int defaultPopulationSize = 40;
 const int initialScore = 0;
-const int defaultbytesPerPlayer = 2;
-const int defaultbitsPerPlayerByte = 3;
+// const int defaultbytesPerPlayer = 2;
+//const int defaultbitsPerPlayerByte = 3;
+const double bitsPerPlayerByte = 3;
 const double probAboveStdDev = 0.1587;
+const int numberOfDefectionOpportunities = 4;
+const bool metaNormsEnabled = false;
+const double bitFlipProbability = 0.01;
+
+// AxelRod's Algorithm
+const int T = 3;
+const int H = -1;
+const int P = -9;
+const int E = -2;
+
+const int Pp = -9;
+const int Ep = -2;
 
 double rand1()
 {
@@ -27,8 +40,8 @@ class Player
 {
 
   int V, B, S;
-  static int bitsPerPlayerByte;
-  static int bytesPerPlayer;
+  // static int bitsPerPlayerByte;
+  //  static int bytesPerPlayer;
 
   /**
  * randomBitFlip(number,probability)
@@ -51,11 +64,13 @@ class Player
   }
 
 public:
-  void setBitsAssumptions(int bytspb = defaultbytesPerPlayer, int bitspp = defaultbitsPerPlayerByte)
-  {
-    bitsPerPlayerByte = bytspb;
-    bytesPerPlayer = bitspp;
-  }
+  // Not used anymore
+  //void setBitsAssumptions(int bytspb = defaultbytesPerPlayer, int bitspp = defaultbitsPerPlayerByte)
+  // void setBitsAssumptions(int bitspp = defaultbitsPerPlayerByte)
+  // {
+  //   // bytesPerPlayer = bytspb;
+  //   bitsPerPlayerByte = bitspp;
+  // }
 
   int vengance() const
   {
@@ -183,16 +198,85 @@ public:
     }
   }
 
-  void
-  iterate()
+  void calculateScores()
   {
+    bool debug = true;
     for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
     {
       Player p = (*it);
+
+      if (debug)
+      {
+        cerr << "Now Player: " << (*it);
+      }
+
+      for (int defectionOpportunity; defectionOpportunity < numberOfDefectionOpportunities; defectionOpportunity++)
+      {
+        // probability of being seen
+        double S = rand1();
+
+        if (debug)
+        {
+          cerr << "Defection opportunity: " << defectionOpportunity << ", S = " << S << endl;
+        }
+
+        // If he is brave enough
+        if (p.boldness() > S)
+        {
+          // Increase the player's payoff
+          p.score() += T;
+
+          // Now to see if anyone caught this person
+          for (list<Player>::iterator jt = playerList.begin(); jt != playerList.end(); jt++)
+          {
+            // skip over the subject
+            if (it == jt)
+              continue;
+
+            // Every other agent was hurt because of this defection
+            jt->score() -= H;
+
+            if (debug)
+              cerr << "Did " << (*jt) << " see him? ";
+
+            // if this defection falls in the probability of being seen
+            double probabilityWasSeen = rand1();
+            if (probabilityWasSeen < S)
+            {
+              if (debug)
+                cerr << "Yes, he was seen by " << (*jt) << ".";
+
+              // Agent j saw agent i
+              // Now let's see what he does about it
+
+              if (debug)
+                cerr << "Did " << (*jt) << " punish him? ";
+
+              // if we sample and it falls under the area of vengeful behavior
+              double probabilityWasVengeful = rand1();
+              if (probabilityWasVengeful < jt->vengance())
+              {
+                if (debug)
+                  cerr << "Yes " << (*jt) << " punished him";
+
+                jt->score() -= E;
+                it->score() -= P;
+              }
+              else
+              {
+                if (metaNormsEnabled)
+                {
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 
-  Player &playerAt(int indexFrom)
+  Player &
+  playerAt(int indexFrom)
   {
     list<Player>::iterator it = playerList.begin();
     for (int i = 0; i < indexFrom; i++)
@@ -362,6 +446,11 @@ public:
     playerList.clear();
 
     playerList.assign(newList.begin(), newList.end());
+
+    for (list<Player>::iterator it = playerList.begin(); it != playerList.end() && countProgeny < populationSize; it++)
+    {
+      it->BitFlip(bitFlipProbability);
+    }
   }
 
   /* 
@@ -458,8 +547,8 @@ struct UnitTests
       PlaySet pl;
 
       pl.setSeed(2);
-
       pl.setPopulationSize(5);
+
       pl.generateList();
 
       ss << pl;
@@ -550,7 +639,7 @@ struct UnitTests
   {
     string testName = "Test RandomBitSwitch";
     stringstream ss;
-    string expected("(6,4,-12)(0,2,-32)(3,3,-25)(1,1,-79)(6,4,-77)(3,5,-92)(3,0,-81)(5,4,-76)(6,3,-53)(6,6,-87)(1,4,-58)(3,1,-71)(4,1,-60)(1,5,-73)(4,6,-75)(4,6,-6)(4,0,-7)(1,0,-47)(4,3,-81)(6,6,-22)\n(4,6,-6)(4,6,-6)(4,0,-7)(4,0,-7)(6,4,-12)(6,4,-12)(6,6,-22)(3,3,-25)(0,2,-32)(1,0,-47)(6,3,-53)(1,4,-58)(4,1,-60)(3,1,-71)(1,5,-73)(4,6,-75)(5,4,-76)(6,4,-77)(1,1,-79)(3,0,-81)");
+    string expected("(6,4,-12)(0,2,-32)(3,3,-25)(1,1,-79)(6,4,-77)(3,5,-92)(3,0,-81)(5,4,-76)(6,3,-53)(6,6,-87)(1,4,-58)(3,1,-71)(4,1,-60)(1,5,-73)(4,6,-75)(4,6,-6)(4,0,-7)(1,0,-47)(4,3,-81)(6,6,-22)\n(4,6,-6)(4,6,-6)(4,0,-7)(4,1,-7)(6,4,-12)(6,4,-12)(6,6,-22)(3,3,-25)(0,2,-32)(1,0,-47)(6,3,-53)(1,4,-58)(4,1,-60)(3,1,-71)(1,5,-73)(4,6,-75)(5,4,-76)(6,4,-77)(1,1,-79)(3,0,-81)");
 
     {
       PlaySet pl;
