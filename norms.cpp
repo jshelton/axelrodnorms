@@ -3,9 +3,17 @@
 #include <vector>
 #include <sstream>
 
+#include <math.h>
 #include <time.h> /* time */
 
 using namespace std;
+
+// For double math to work well
+const double nudge = 0.00000001;
+
+// Populationcontrols
+const int defaultPopulationSize = 40;
+const int initialScore = 0;
 
 class Player
 {
@@ -43,23 +51,30 @@ public:
     return B;
   }
 
-  void clone(Player const &p)
-  {
-    const int initialScore = 0;
-    this->V = p.V;
-    this->B = p.B;
-    this->S = initialScore;
-  }
+  // void clone(Player const &p)
+  // {
+  //   this->V = p.V;
+  //   this->B = p.B;
+  //   this->S = initialScore;
+  // }
 
   Player(Player const &p)
   {
-    clone(p);
+    this->V = p.V;
+    this->B = p.B;
+    this->S = p.S;
+  }
+
+  Player(int newV, int newB, int newS)
+  {
+
+    this->V = newV;
+    this->B = newB;
+    this->S = newS;
   }
 
   Player(int newV, int newB)
   {
-
-    const int initialScore = 2;
     this->V = newV;
     this->B = newB;
     this->S = initialScore;
@@ -83,8 +98,14 @@ class PlaySet
   list<Player> playerList;
   int seed;
   int length;
+  int populationSize;
 
 public:
+  void setPopulationSize(int size = defaultPopulationSize)
+  {
+    populationSize = size;
+  }
+
   void setSeed(int seedIn = -1)
   {
 
@@ -96,6 +117,9 @@ public:
     srand(seed);
   }
 
+  /** 
+ * Return the list size for printing to ostream
+ */
   int size() const
   {
     return playerList.size();
@@ -104,15 +128,14 @@ public:
   /*
    * This generates a list of random players 
    */
-  void generateList(int listLength)
+  void generateList()
   {
-
     if (seed < 0)
     {
       this->setSeed();
     }
 
-    for (int i = 0; i < listLength; i++)
+    for (int i = 0; i < populationSize; i++)
     {
       playerList.push_back(Player(0.0 + rand() % 7, 0.0 + rand() % 7));
     }
@@ -143,7 +166,111 @@ public:
     return *it;
   }
 
-    /* 
+  static inline double squared(double num)
+  {
+    return num * num;
+  }
+
+  /* 
+* averageScore()
+* returns the average score of the dataset
+*/
+  double averageScore()
+  {
+
+    double scoreTotal = 0;
+
+    for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
+    {
+      scoreTotal += it->score();
+    }
+
+    double average = scoreTotal / playerList.size();
+
+    return average;
+  }
+  /* 
+* stdDev()
+* Returns the standard deviation
+*/
+  double stdDevScore()
+  {
+
+    double varianceTotal = 0;
+
+    double average = averageScore();
+
+    for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
+    {
+      varianceTotal += squared(it->score() - average);
+    }
+
+    double stdDev = sqrt(varianceTotal) / playerList.size();
+    return stdDev;
+  }
+
+  /*
+* Procreate
+* This function will go through all the items and will generate 2 clones of individuals with scores
+* One standard deviation higher, as well as clones for all except the lowest generation. 
+*/
+  void procreate()
+  {
+    bool debug = false;
+    double stdDev = stdDevScore();
+    double average = averageScore();
+
+    if (debug)
+      cerr << "-std dev: " << stdDev << " Average: " << average;
+
+    // Here we procreate by:
+    // Add two of the ones higher than one standard deviation
+    // Add one for those who are above one standard deviation
+    // Ignore less than one standard deviation
+    // Until we reach the size of our max Population and then we stop
+
+    int i = 0;
+    list<Player> newList;
+
+    for (list<Player>::iterator it = playerList.begin(); it != playerList.end() && i < populationSize; i++, it++)
+    {
+
+      if (it->score() > average - stdDev - nudge)
+      {
+        newList.push_back(Player(*it));
+        if (it->score() > stdDev + average + nudge)
+          newList.push_back(Player(*it));
+      }
+    }
+
+    if (debug)
+    {
+      cerr << endl
+           << "-newList ";
+      for (list<Player>::iterator it = newList.begin(); it != newList.end(); it++)
+      {
+        cerr << "," << *it;
+      }
+    }
+
+    playerList.clear();
+
+    playerList.assign(newList.begin(), newList.end());
+
+    if (debug)
+    {
+      cerr << endl
+           << "-playerList ";
+      for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
+      {
+        cerr << "," << *it;
+      }
+
+      cerr << endl;
+    }
+  }
+
+  /* 
   *  Procreate clones the current player and places him immediately after the current player. 
   *  This new player has the default initial score 0.
   */
@@ -173,7 +300,7 @@ public:
   {
     this->seed = -1;
     length = 0;
-    //    this->playerList = new list<Player>();
+    populationSize = defaultPopulationSize;
   }
 };
 
@@ -236,7 +363,8 @@ struct UnitTests
 
       pl.setSeed(2);
 
-      pl.generateList(5);
+      pl.setPopulationSize(5);
+      pl.generateList();
 
       ss << pl;
     }
@@ -262,8 +390,8 @@ struct UnitTests
       PlaySet pl;
 
       pl.setSeed(3);
-
-      pl.generateList(20);
+      pl.setPopulationSize(20);
+      pl.generateList();
 
       ss << pl;
     }
@@ -281,25 +409,26 @@ struct UnitTests
 
   static bool test3(bool debug)
   {
-    string testName = "Test cloning/progeny";
+    string testName = "Test reproduction";
     stringstream ss;
-    string expected("(0,0,0)(4,3,0)(3,4,0)(6,1,0)(6,1,0)(1,1,0)(3,5,0)(5,4,0)(0,0,0)(4,5,0)(4,2,0)(4,6,0)(2,5,0)(1,1,0)(4,5,0)(6,4,0)(3,0,0)(0,4,0)(1,1,0)(6,1,0)");
+    string expected("(0,3,-40)(2,1,-33)(1,4,-15)(4,5,-23)(1,5,-10)\n(1,4,-15)(1,4,-15)(4,5,-23)(1,5,-10)(1,5,-10)");
 
     {
       PlaySet pl;
 
-      pl.setSeed(3);
+      pl.setSeed(9823);
 
-      pl.generateList(20);
+      pl.setPopulationSize(5);
+      pl.generateList();
 
-      try
-      {
-        pl.procreateOne(3);
-      }
-      catch (const char *msg)
-      {
-        cerr << msg << endl;
-      }
+      pl.playerAt(0).score() = -40;
+      pl.playerAt(1).score() = -33;
+      pl.playerAt(2).score() = -15;
+      pl.playerAt(3).score() = -23;
+      pl.playerAt(4).score() = -10;
+      ss << pl << endl;
+
+      pl.procreate();
 
       ss << pl;
     }
@@ -317,7 +446,7 @@ struct UnitTests
 
   static bool test4(bool debug)
   {
-    string testName = "Test sort by score";
+    string testName = "Test Procreation";
     stringstream ss;
     string expected("This is a Test");
 
