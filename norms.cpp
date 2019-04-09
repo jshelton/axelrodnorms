@@ -19,7 +19,8 @@ const int initialScore = 0;
 const double bitsPerPlayerByte = 3;
 const double probAboveStdDev = 0.1587;
 const int numberOfDefectionOpportunities = 1;
-const bool metaNormsEnabled = false;
+const bool metaNormsDefault = true;
+bool metaNormsEnabled = false;
 const double bitFlipProbability = 0.01;
 
 // AxelRod's Algorithm
@@ -259,7 +260,7 @@ public:
               // Agent j saw agent i
               // Now let's see what he does about it
 
-              // if we sample and it falls under the area of vengeful behavior
+              // is he going to be vengeful
               double probabilityWasVengeful = rand1() * vengenceScale;
               if (debug)
                 cerr << "Did " << (*jt) << " punish him (" << probabilityWasVengeful << "/" << jt->vengance() << ")?";
@@ -275,16 +276,73 @@ public:
               }
               else
               {
+                if (debug)
+                  cerr << " He was not vengeful.";
+
+                // Someone has seen the culprit but not punished
                 if (metaNormsEnabled)
                 {
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
+                  // kt is the punisher of jt when he does not punish it
+                  for (list<Player>::iterator kt = playerList.begin(); kt != playerList.end(); kt++)
+                  {
+                    // skip over the subject and the observer who did nothing
+                    if (kt == jt || kt == it)
+                      continue;
+
+                    // No other agent was hurt by this
+                    // jt->score() += H;
+
+                    double probabilityWasSeen = rand1();
+
+                    if (debug)
+                      cerr << endl
+                           << " Did " << (*kt) << " see " << (*jt) << " walk away (" << probabilityWasSeen << "/" << S << ")? ";
+
+                    // if this defection falls in the probability of being seen
+                    if (probabilityWasSeen < S)
+                    {
+                      if (debug)
+                        cerr << " Yes, he was seen.";
+
+                      // Agent j saw agent i
+                      // Now let's see what he does about it
+
+                      // is he going to be vengeful
+                      double probabilityWasVengeful = rand1() * vengenceScale;
+                      if (debug)
+                        cerr << "Did " << (*kt) << " punish him for walking away (" << probabilityWasVengeful << "/" << kt->vengance() << ")?";
+
+                      if (probabilityWasVengeful < kt->vengance())
+                      {
+
+                        kt->score() += Ep;
+                        jt->score() += Pp;
+
+                        if (debug)
+                          cerr << " Yes " << (*kt) << " punished " << (*jt) << ".";
+                      } // if was vengeful
+                      else if (debug)
+                        cerr << " No not vengeful.";
+                    } // if was seen
+                    else if (debug)
+                      cerr << " No not seen not punishing.";
+                  } // for all other metapunishers
+                }   // if Metanorms working
+                else if (debug)
+                  cerr << " No metanorms.";
+
+              } // not punished first time
+
+            } // Seen defecting
+            else if (debug)
+              cerr << " No not seen defecting.";
+          } // For each other agent possibly observing
+        }   // If Boldness is high enough
+        else if (debug)
+          cerr << " No too brave.";
+      } // For each defecting opportunity
+    }   // For each player
+  }     // Calculate Scores
 
   Player &
   playerAt(int indexFrom)
@@ -701,8 +759,45 @@ struct UnitTests
 
       ss << pl << endl;
 
+      metaNormsEnabled = false;
       pl.calculateScores();
+      metaNormsEnabled = metaNormsDefault;
 
+      ss << pl;
+    }
+
+    // See if the expectation value is accurate
+    bool success = (expected.compare(ss.str()) == 0);
+    if (debug)
+    {
+      cerr << "Test Title: " << testName << "" << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
+    }
+    return success;
+  }
+
+  static bool test6(bool debug)
+  {
+    string testName = "Test Score Calculation";
+    stringstream ss;
+    string expected("(6,6,0)(0,3,0)(4,0,0)(1,6,0)(5,2,0)(6,1,0)(2,2,0)(0,6,0)(0,1,0)(0,3,0)(3,0,0)(1,6,0)(5,6,0)(5,2,0)(2,5,0)(0,3,0)(0,0,0)(0,1,0)(1,3,0)(5,6,0)\n(6,6,-57)(0,3,-112)(4,0,-57)(1,6,-54)(5,2,-22)(6,1,-45)(2,2,-93)(0,6,-58)(0,1,-49)(0,3,-17)(3,0,-42)(1,6,-71)(5,6,-70)(5,2,-135)(2,5,-84)(0,3,-76)(0,0,-26)(0,1,-35)(1,3,-102)(5,6,-34)");
+
+    {
+      PlaySet pl;
+
+      pl.setSeed(195105);
+
+      int popSize = 20;
+      pl.setPopulationSize(popSize);
+      pl.generateList();
+
+      ss << pl << endl;
+      metaNormsEnabled = true;
+      pl.calculateScores();
+      metaNormsEnabled = metaNormsDefault;
       ss << pl;
     }
 
@@ -725,12 +820,13 @@ struct UnitTests
 
     vector<bool> pass;
 
-    runTest(pass, test0, debug);
-    runTest(pass, test1, debug);
-    runTest(pass, test2, debug);
-    runTest(pass, test3, debug);
-    runTest(pass, test4, debug);
-    runTest(pass, test5, debug);
+    runTest(pass, test0, debug); //0
+    runTest(pass, test1, debug); //1
+    runTest(pass, test2, debug); //2
+    runTest(pass, test3, debug); //3
+    runTest(pass, test4, debug); //4
+    runTest(pass, test5, debug); //5
+    runTest(pass, test6, debug); //6
 
     bool passall = true;
 
