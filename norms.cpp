@@ -16,7 +16,7 @@ const int defaultPopulationSize = 40;
 const int initialScore = 0;
 const double bitsPerPlayerByte = 3;
 const double probAboveStdDev = 0.1587;
-const int numberOfDefectionOpportunities = 1;
+const int numberOfDefectionOpportunities = 4;
 const bool metaNormsDefault = true;
 const double bitFlipProbability = 0.01;
 const int numberOfGenerations = 1000;
@@ -30,11 +30,11 @@ bool metaNormsEnabled = true;
 int boldnessScale = 8;
 int vengenceScale = 8;
 const int T = 3;
-const int H = -1;
-const int P = -9;
+const int H = -3;
+const int P = -8;
 const int E = -2;
 
-const int Pp = -20;
+const int Pp = -8;
 const int Ep = -2;
 
 double rand1()
@@ -943,7 +943,7 @@ list<AvgSet> &runSets(int numberOfTimes = numberOfGames, int seed = -1)
   if (printGame || printTrace)
     cout << "var a = [" << endl;
 
-  metaNormsEnabled = true;
+
   for (int i = 0; i < numberOfTimes; i++)
   {
     PlaySet pl;
@@ -979,5 +979,6 @@ int main()
 {
   // test.runAll();
   cerr << "Seed:" << setSeed(1554923370) << endl;
+  // cerr << "Seed:" << seedTime() << endl;
   runSets();
 }
