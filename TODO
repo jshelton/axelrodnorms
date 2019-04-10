@@ -1,5 +1,14 @@
 
 Todo:
-  ☐ Generations
-  ☐ Samples
-  ☐ Graphs
+  ☐ Output as we progress
+  ☐ Output jaavascript code
+  ☐ remove string of all the outputs
+
+Graphing options:
+  ☐ Output as a progress over time
+  ☐ Graph norm convergance
+  - Split data into StdDeviations and graph 
+  - Split graphs into quadrants and graph 
+
+Experiment:
+  ☐ Cluster and graph them

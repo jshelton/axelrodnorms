@@ -3,6 +3,7 @@
         "iostream": "cpp",
         "vector": "cpp",
         "iosfwd": "cpp",
-        "list": "cpp"
+        "list": "cpp",
+        "ostream": "cpp"
     }
 }

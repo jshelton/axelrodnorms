@@ -9,7 +9,7 @@
 using namespace std;
 
 // For double math to work well
-const double nudge = 0.00000001;
+const double doubleError = 0.00000001;
 
 // Populationcontrols
 const int defaultPopulationSize = 40;
@@ -18,32 +18,53 @@ const double bitsPerPlayerByte = 3;
 const double probAboveStdDev = 0.1587;
 const int numberOfDefectionOpportunities = 1;
 const bool metaNormsDefault = true;
-bool metaNormsEnabled = true;
 const double bitFlipProbability = 0.01;
-const int numberOfGenerations = 100;
+const int numberOfGenerations = 1000;
+const int numberOfGames = 50;
+
+const bool printTrace = true;
+const bool printGame = false;
 
 // AxelRod's Algorithm
-int boldnessScale = 7;
-int vengenceScale = 7;
+bool metaNormsEnabled = true;
+int boldnessScale = 8;
+int vengenceScale = 8;
 const int T = 3;
 const int H = -1;
 const int P = -9;
 const int E = -2;
 
-const int Pp = -9;
+const int Pp = -20;
 const int Ep = -2;
 
 double rand1()
 {
-  return (1.0 * rand()) / RAND_MAX;
+  return (rand() % RAND_MAX) / (1.0 * RAND_MAX);
+}
+
+int seed = -1;
+
+int seedTime()
+{
+  seed = time(NULL);
+  srand(seed);
+  return seed;
+}
+
+int setSeed(int seedIn)
+{
+  seed = seedIn;
+  srand(seed);
+  return seed;
 }
 
 struct AvgSet
 {
-
   double averageBoldness;
   double averageVengence;
   double averageScore;
+
+  int count;
 
   AvgSet()
   {
@@ -62,7 +83,7 @@ struct AvgSet
 
 ostream &operator<<(ostream &os, const AvgSet &p)
 {
-  return os << p.averageBoldness << "," << p.averageVengence << "," << p.averageVengence;
+  return os << "[" << p.averageBoldness << "," << p.averageVengence << "," << p.averageVengence << "],";
 }
 
 class Player
@@ -172,16 +193,12 @@ class PlaySet
 {
 
   list<Player> playerList;
-  int seed;
+
   int length;
   int populationSize;
+  int seed;
 
 public:
-  void setPopulationSize(int size = defaultPopulationSize)
-  {
-    populationSize = size;
-  }
-
   void setSeed(int seedIn = -1)
   {
 
@@ -191,6 +208,11 @@ public:
       seed = seedIn;
 
     srand(seed);
+  }
+
+  void setPopulationSize(int size = defaultPopulationSize)
+  {
+    populationSize = size;
   }
 
   /** 
@@ -206,11 +228,6 @@ public:
    */
   void generateList()
   {
-    if (seed < 0)
-    {
-      this->setSeed();
-    }
-
     for (int i = 0; i < populationSize; i++)
     {
       playerList.push_back(Player(rand() % boldnessScale, rand() % vengenceScale));
@@ -512,16 +529,17 @@ public:
     bool debug = false;
     for (int i = 0; i < numberOfTimes; i++)
     {
+      cout << "[" << getAvgSet();
       calculateScores();
       if (debug)
         printAvgs(cerr);
       procreate();
+      cout << getAvgSet() << "]," << endl;
     }
   }
 
   PlaySet()
   {
-    this->seed = -1;
     length = 0;
     populationSize = defaultPopulationSize;
   }
@@ -894,43 +912,64 @@ struct UnitTests
 
 ostream &operator<<(ostream &os, const list<AvgSet> &myList)
 {
+  os << "[[";
   for (list<AvgSet>::const_iterator it = myList.begin(); it != myList.end(); it++)
   {
-    os << (*it) << endl;
+    os << it->averageBoldness << ",";
   }
+  os << "],[";
+  for (list<AvgSet>::const_iterator it = myList.begin(); it != myList.end(); it++)
+  {
+    os << it->averageVengence << ",";
+  }
+  os << "],[";
+  for (list<AvgSet>::const_iterator it = myList.begin(); it != myList.end(); it++)
+  {
+    os << it->averageScore << ",";
+  }
+  os << "]]";
+
   return os;
 }
 
-list<AvgSet> &runSets(int numberOfTimes)
+list<AvgSet> &runSets(int numberOfTimes = numberOfGames, int seed = -1)
 {
 
-  srand(89231);
   // srand(23231);
+
   list<AvgSet> *initialSet = new list<AvgSet>();
   list<AvgSet> *results = new list<AvgSet>();
+
+  if (printGame || printTrace)
+    cout << "var a = [" << endl;
 
   metaNormsEnabled = true;
   for (int i = 0; i < numberOfTimes; i++)
   {
     PlaySet pl;
 
-    pl.setSeed(rand());
-
-    int popSize = numberOfGenerations;
+    int popSize = defaultPopulationSize;
     pl.setPopulationSize(popSize);
     pl.generateList();
-
     initialSet->push_back(pl.getAvgSet());
 
     pl.run(numberOfGenerations);
 
     results->push_back(pl.getAvgSet());
-  }
-  metaNormsEnabled = metaNormsDefault;
-  cerr << (*initialSet) << endl
-       << endl;
 
-  cerr << (*results) << endl
+    if (printGame)
+      cout << "[" << initialSet->back() << results->back() << "]," << endl;
+  }
+
+  if (printGame || printTrace)
+    cout << "]" << endl;
+
+  metaNormsEnabled = metaNormsDefault;
+
+  cerr << "Results:" << endl;
+  cerr << (*initialSet) << endl;
+
+  cerr << (*results)
        << endl;
 
   return (*results);
@@ -939,5 +978,6 @@ list<AvgSet> &runSets(int numberOfTimes)
 int main()
 {
   // test.runAll();
-  runSets(10);
+  cerr << "Seed:" << setSeed(1554923370) << endl;
+  runSets();
 }
