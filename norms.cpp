@@ -18,8 +18,9 @@ const double bitsPerPlayerByte = 3;
 const double probAboveStdDev = 0.1587;
 const int numberOfDefectionOpportunities = 1;
 const bool metaNormsDefault = true;
-bool metaNormsEnabled = false;
+bool metaNormsEnabled = true;
 const double bitFlipProbability = 0.01;
+const int numberOfGenerations = 100;
 
 // AxelRod's Algorithm
 int boldnessScale = 7;
@@ -35,6 +36,33 @@ const int Ep = -2;
 double rand1()
 {
   return (1.0 * rand()) / RAND_MAX;
+}
+
+struct AvgSet
+{
+
+  double averageBoldness;
+  double averageVengence;
+  double averageScore;
+
+  AvgSet()
+  {
+    averageBoldness = -1;
+    averageVengence = -1;
+    averageScore = 0;
+  }
+
+  AvgSet(double a, double b, double c)
+  {
+    averageBoldness = a;
+    averageVengence = b;
+    averageScore = c;
+  }
+};
+
+ostream &operator<<(ostream &os, const AvgSet &p)
+{
+  return os << p.averageBoldness << "," << p.averageVengence << "," << p.averageVengence;
 }
 
 class Player
@@ -93,6 +121,11 @@ public:
   int &boldness()
   {
     return B;
+  }
+
+  int resetScore()
+  {
+    return S = initialScore;
   }
 
   Player(Player const &p)
@@ -429,7 +462,60 @@ public:
 
     for (list<Player>::iterator it = playerList.begin(); it != playerList.end() && countProgeny < populationSize; it++)
     {
+
+      it->resetScore();
       it->BitFlip(bitFlipProbability);
+    }
+  }
+  //TODO: Check if length or size is used much
+  ostream &printAvgs(ostream &os)
+  {
+    double sumBoldness = 0;
+    double sumVengance = 0;
+    double sumScores = 0;
+    for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
+    {
+      sumBoldness += it->boldness();
+      sumVengance += it->vengance();
+      sumScores += it->score();
+    }
+    os << (1.0 * sumBoldness / playerList.size()) << "\t" << (1.0 * sumVengance / playerList.size()) << "\t" << (1.0 * sumScores / playerList.size()) << endl;
+    return os;
+  }
+
+  AvgSet &getAvgSet()
+  {
+    double sumBoldness = 0;
+    double sumVengance = 0;
+    double sumScores = 0;
+    for (list<Player>::iterator it = playerList.begin(); it != playerList.end(); it++)
+    {
+      sumBoldness += it->boldness();
+      sumVengance += it->vengance();
+      sumScores += it->score();
+    }
+
+    return *(new AvgSet((1.0 * sumBoldness / playerList.size()), (1.0 * sumVengance / playerList.size()), (1.0 * sumScores / playerList.size())));
+  }
+
+  ostream &print(ostream &os) const
+  {
+    for (list<Player>::const_iterator it = playerList.begin(); it != playerList.end(); it++)
+    {
+      os << (*it);
+    }
+    return os;
+  }
+
+  void run(int numberOfTimes)
+  {
+    bool debug = false;
+    for (int i = 0; i < numberOfTimes; i++)
+    {
+      calculateScores();
+      if (debug)
+        printAvgs(cerr);
+      procreate();
     }
   }
 
@@ -443,11 +529,8 @@ public:
 
 ostream &operator<<(ostream &os, const PlaySet &ps)
 {
-  for (int i = 0; i < ps.size(); i++)
-  {
-    os << ps.playerAt(i);
-  }
-  return os;
+
+  return ps.print(os);
 }
 
 struct UnitTests
@@ -554,7 +637,7 @@ struct UnitTests
   {
     string testName = "Test reproduction";
     stringstream ss;
-    string expected("(0,3,-40)(2,1,-33)(1,4,-15)(4,5,-23)(1,5,-10)\n(1,5,-10)(1,4,-15)(4,5,-23)(2,1,-33)(0,3,-40)");
+    string expected("(0,3,-40)(2,1,-33)(1,4,-15)(4,5,-23)(1,5,-10)\n(1,5,0)(1,4,0)(4,5,0)(2,1,0)(0,3,0)");
 
     {
       PlaySet pl;
@@ -593,7 +676,7 @@ struct UnitTests
   {
     string testName = "Test RandomBitSwitch";
     stringstream ss;
-    string expected("(6,4,-12)(0,2,-32)(3,3,-25)(1,1,-79)(6,4,-77)(3,5,-92)(3,0,-81)(5,4,-76)(6,3,-53)(6,6,-87)(1,4,-58)(3,1,-71)(4,1,-60)(1,5,-73)(4,6,-75)(4,6,-6)(4,0,-7)(1,0,-47)(4,3,-81)(6,6,-22)\n(4,6,-6)(4,6,-6)(4,0,-7)(4,1,-7)(6,4,-12)(6,4,-12)(6,6,-22)(3,3,-25)(0,2,-32)(1,0,-47)(6,3,-53)(1,4,-58)(4,1,-60)(3,1,-71)(1,5,-73)(4,6,-75)(5,4,-76)(6,4,-77)(1,1,-79)(3,0,-81)");
+    string expected("(6,4,-12)(0,2,-32)(3,3,-25)(1,1,-79)(6,4,-77)(3,5,-92)(3,0,-81)(5,4,-76)(6,3,-53)(6,6,-87)(1,4,-58)(3,1,-71)(4,1,-60)(1,5,-73)(4,6,-75)(4,6,-6)(4,0,-7)(1,0,-47)(4,3,-81)(6,6,-22)\n(4,6,0)(4,6,0)(4,0,0)(4,1,0)(6,4,0)(6,4,0)(6,6,0)(3,3,0)(0,2,0)(1,0,0)(6,3,0)(1,4,0)(4,1,0)(3,1,0)(1,5,0)(4,6,0)(5,4,0)(6,4,0)(1,1,0)(3,0,0)");
 
     {
       PlaySet pl;
@@ -666,7 +749,7 @@ struct UnitTests
 
   static bool test6(bool debug)
   {
-    string testName = "Test Score Calculation";
+    string testName = "Test Score Calculation with Metanorms";
     stringstream ss;
     string expected("(6,6,0)(0,3,0)(4,0,0)(1,6,0)(5,2,0)(6,1,0)(2,2,0)(0,6,0)(0,1,0)(0,3,0)(3,0,0)(1,6,0)(5,6,0)(5,2,0)(2,5,0)(0,3,0)(0,0,0)(0,1,0)(1,3,0)(5,6,0)\n(6,6,-57)(0,3,-112)(4,0,-57)(1,6,-54)(5,2,-22)(6,1,-45)(2,2,-93)(0,6,-58)(0,1,-49)(0,3,-17)(3,0,-42)(1,6,-71)(5,6,-70)(5,2,-135)(2,5,-84)(0,3,-76)(0,0,-26)(0,1,-35)(1,3,-102)(5,6,-34)");
 
@@ -678,13 +761,14 @@ struct UnitTests
       int popSize = 20;
       pl.setPopulationSize(popSize);
       pl.generateList();
+      metaNormsEnabled = true;
 
       ss << pl << endl;
-      metaNormsEnabled = true;
       pl.calculateScores();
-      metaNormsEnabled = metaNormsDefault;
+
       ss << pl;
     }
+    metaNormsEnabled = metaNormsDefault;
 
     // See if the expectation value is accurate
     bool success = (expected.compare(ss.str()) == 0);
@@ -699,6 +783,79 @@ struct UnitTests
     return success;
   }
 
+  static bool test7(bool debug)
+  {
+    string testName = "Test Multigeneration";
+    stringstream ss;
+    string expected("(0,4,0)(5,0,0)(6,0,0)(5,5,0)(6,0,0)(0,3,0)(3,4,0)(6,4,0)(6,0,0)(1,2,0)(4,1,0)(5,6,0)(4,4,0)(2,3,0)(2,5,0)\n(6,1,0)(6,1,0)(6,1,0)(6,1,0)(6,0,0)(4,0,0)(6,1,0)(6,1,0)(6,2,0)(4,0,0)(6,1,0)(6,1,0)(6,1,0)(6,1,0)(6,1,0)");
+
+    {
+      PlaySet pl;
+
+      pl.setSeed(12852);
+      int popSize = 15;
+      pl.setPopulationSize(popSize);
+      pl.generateList();
+      metaNormsEnabled = true;
+
+      ss << pl << endl;
+
+      pl.run(numberOfGenerations);
+
+      ss << pl;
+    }
+
+    metaNormsEnabled = metaNormsDefault;
+
+    // See if the expectation value is accurate
+    bool success = (expected.compare(ss.str()) == 0);
+    if (debug)
+    {
+      cerr << "Test Title: " << testName << "" << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
+    }
+    return success;
+  }
+
+  static bool test8(bool debug)
+  {
+    string testName = "Test Multigeneration";
+    stringstream ss;
+    string expected("(0,4,0)(5,0,0)(6,0,0)(5,5,0)(6,0,0)(0,3,0)(3,4,0)(6,4,0)(6,0,0)(1,2,0)(4,1,0)(5,6,0)(4,4,0)(2,3,0)(2,5,0)\n(6,1,0)(6,1,0)(6,1,0)(6,1,0)(6,0,0)(4,0,0)(6,1,0)(6,1,0)(6,2,0)(4,0,0)(6,1,0)(6,1,0)(6,1,0)(6,1,0)(6,1,0)");
+
+    {
+      PlaySet pl;
+
+      pl.setSeed(23231);
+      int popSize = numberOfGenerations;
+      pl.setPopulationSize(popSize);
+      pl.generateList();
+      metaNormsEnabled = true;
+
+      ss << pl << endl;
+
+      pl.run(numberOfGenerations);
+
+      ss << pl;
+    }
+
+    metaNormsEnabled = metaNormsDefault;
+
+    // See if the expectation value is accurate
+    bool success = (expected.compare(ss.str()) == 0);
+    if (debug)
+    {
+      cerr << "Test Title: " << testName << "" << endl;
+      cerr << "Expected: " << endl
+           << expected << endl;
+      cerr << "Actual: " << endl
+           << ss.str() << endl;
+    }
+    return success;
+  }
   static bool runAll()
   {
     bool debug = true;
@@ -712,6 +869,8 @@ struct UnitTests
     runTest(pass, test4, debug); //4
     runTest(pass, test5, debug); //5
     runTest(pass, test6, debug); //6
+    runTest(pass, test7, debug); //7
+    runTest(pass, test8, debug); //7
 
     bool passall = true;
 
@@ -733,7 +892,52 @@ struct UnitTests
 
 } test;
 
+ostream &operator<<(ostream &os, const list<AvgSet> &myList)
+{
+  for (list<AvgSet>::const_iterator it = myList.begin(); it != myList.end(); it++)
+  {
+    os << (*it) << endl;
+  }
+  return os;
+}
+
+list<AvgSet> &runSets(int numberOfTimes)
+{
+
+  srand(89231);
+  // srand(23231);
+  list<AvgSet> *initialSet = new list<AvgSet>();
+  list<AvgSet> *results = new list<AvgSet>();
+
+  metaNormsEnabled = true;
+  for (int i = 0; i < numberOfTimes; i++)
+  {
+    PlaySet pl;
+
+    pl.setSeed(rand());
+
+    int popSize = numberOfGenerations;
+    pl.setPopulationSize(popSize);
+    pl.generateList();
+
+    initialSet->push_back(pl.getAvgSet());
+
+    pl.run(numberOfGenerations);
+
+    results->push_back(pl.getAvgSet());
+  }
+  metaNormsEnabled = metaNormsDefault;
+  cerr << (*initialSet) << endl
+       << endl;
+
+  cerr << (*results) << endl
+       << endl;
+
+  return (*results);
+}
+
 int main()
 {
-  test.runAll();
+  // test.runAll();
+  runSets(10);
 }
